@@ -12,16 +12,17 @@ echo ""
 echo "Enter wordlist for SUBDOMAIN discovery or just press enter for default wordlist: "
 echo "Default: /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt"
 read wordlist1
-echo "Default set: ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt}"
+echo "Wordlist set: ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt}"
 
 echo ""
 echo "Enter wordlist for DIRECTORY discovery or just press enter for default wordlist: "
 echo "Default: /usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt"
 read wordlist2
-echo "Default set: ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt}"
+echo "Wordlist set: ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt}"
 
 echo ""
 echo "Performing FFUF for subdomain discovery..."
+echo "This may take a while..."
 
 ffuf -w $wordlist1 -u http://FUZZ.$url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -s -t 4 -timeout 5 -p "0.1-2.0" -o result-1 2>/dev/null
 
@@ -31,10 +32,12 @@ echo "http://$url" >> .tmp1
 
 echo ""
 echo "Performing FEROXBUSTER for directory discovery..."
+echo "This may take a loooong time..."
 
+touch result-2
 for i in $(cat .tmp1);
 do
-feroxbuster --url $i --thread 10 --scan-limit 1 --rate-limit 4 --random-agent --wordlist $wordlist2 --thorough --silent --insecure --redirects --output "result-2" 2>/dev/null 1>/dev/null;
+feroxbuster --url $i --wordlist $wordlist2 --threads 10 --scan-limit 1 --rate-limit 4 --random-agent --thorough --redirects --output "result-2" 2>/dev/null 1>/dev/null;
 echo -ne ".";
 done
 echo ""
