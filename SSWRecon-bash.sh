@@ -9,26 +9,21 @@ do
 done
 
 echo ""
-echo "Enter wordlist for subdomain discovery or just press enter for default wordlist: "
+echo "Enter wordlist for SUBDOMAIN discovery or just press enter for default wordlist: "
+echo "Default: /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt"
 read wordlist1
-if [ "$wordlist1" = "" ]
-then
-    echo "Default: /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt" 
-    wordlist1 = /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt
-fi
+echo "Default set: ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt}"
 
 echo ""
-echo "Enter wordlist for directory discovery or just press enter for default wordlist: "
+echo "Enter wordlist for DIRECTORY discovery or just press enter for default wordlist: "
+echo "Default: /usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt"
 read wordlist2
-if [ "$wordlist2" = "" ]
-then
-    echo "Default: /usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt" 
-    wordlist2 = /usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt
-fi
+echo "Default set: ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt}"
+
 echo ""
 echo "Performing FFUF for subdomain discovery..."
 
-ffuf -w $wordlist1 -u http://FUZZ.$url -H "User-Agent: Mozilla/5.0" -mc all -fs 0 -t 10 -p "0.1-2.0" -s -o result-1 2>/dev/null 1>/dev/null
+ffuf -w $wordlist1 -u http://FUZZ.$url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -s -t 4 -timeout 5 -p "0.1-2.0" -o result-1 2>/dev/null
 
 sed -i 's/"url"/\n/g' result-1
 cat result-1 | cut -d '"' -f2 | grep "http" | grep -v "FUZZ" > .tmp1
@@ -39,7 +34,7 @@ echo "Performing FEROXBUSTER for directory discovery..."
 
 for i in $(cat .tmp1);
 do
-feroxbuster --url $i --threads 10 --scan-limit 1 --rate-limit 4 --random-agent --wordlist $wordlist2 --silent --output "result-2" 2>/dev/null 1>/dev/null;
+feroxbuster --url $i --thread 10 --scan-limit 1 --rate-limit 4 --random-agent --wordlist $wordlist2 --thorough --silent --insecure --redirects --output "result-2" 2>/dev/null 1>/dev/null;
 echo -ne ".";
 done
 echo ""
