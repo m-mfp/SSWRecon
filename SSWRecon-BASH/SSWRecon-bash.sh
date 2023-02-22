@@ -29,28 +29,42 @@ read wordlist2
 
 # Performing ffuf
 echo ""
-echo "---------------- Performing FFUF for subdomain discovery with ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt} ----------------"
-ffuf -w $wordlist1 -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 4 -timeout 5 -p "1.0-2.0" -rate 2 -s -of csv -o .tmp-ffuf
+echo "---------- Performing FFUF for subdomain discovery with ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt} ----------"
+ffuf -w $wordlist1 -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -s -of csv -o .tmp-ffuf
 
 # Looking for subdomains without DNS records
-ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w fake-subs.txt -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 4 -timeout 5 -p "1.0-2.0" -rate 2 -s -mc all -fs 0 > .a
+echo "---------- Looking for subdomains without DNS records ----------"
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w fakesub.txt -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -p "1.0-2.0" -s -of csv -o .tmp 1>/dev/null
 
-ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w wordlist -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 4 -timeout 5 -p "1.0-2.0" -rate 2 -mc all -fs $(awk  '{print $5}' .a | cut -d "," -f1 | head -n 1)
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w wordlist -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -mc all -s -of csv -fs $(cut -d "," -f 6 .tmp | tail -n +2) -or -o .tmp-ffuf2 2>/dev/null
+
+# Filtering results from ffuf
+if test -f .tmp-ffuf2; then
+    cat .tmp-ffuf2 >> .tmp-ffuf
+    tail -n +2 .tmp-ffuf | cut -d "," -f 2 >> .tmp-ffuf3
+    sort -u .tmp-ffuf3 > .tmp-ffuf
+    rm -rf .tmp-ffuf2 .tmp-ffuf3
+else
+    echo "Couldn't find subdomains without DNS records"
+    tail -n +2 .tmp-ffuf | cut -d "," -f 2 > .tmp-ffuf3
+    sort -u .tmp-ffuf3 > .tmp-ffuf
+    rm -rf .tmp-ffuf3
+fi
 
 # Performing feroxbuster with filtered results from ffuf
 echo ""
-echo "---------------- Performing FEROXBUSTER for directory discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------------"
+echo "---------- Performing FEROXBUSTER for directory discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------"
 echo "This may take a loooong time..."
 echo ""
 
 touch .tmp-ferox
-for u in $(tail -n +2 .tmp-ffuf | cut -d "," -f 2);
+for u in $(cat .tmp-ffuf);
 do
-feroxbuster --url $u --wordlist $wordlist2 --threads 10 --scan-limit 1 --rate-limit 4 --random-agent --collect-extensions --collect-backups --collect-words --redirects --insecure --quiet 2>/dev/null --output ".tmp-ferox";
+feroxbuster --url $u --wordlist $wordlist2 --threads 20 --scan-limit 2 --rate-limit 6 --random-agent --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
 done
 
 # Filtered results from feroxbuster
-cat .tmp-ferox | awk -F "c " '{print $2}' | awk 'NF>0' > .tmp3
+cat .tmp-ferox | awk -F "c " '{print $2}' | awk 'NF>0' > .tmp
 
 echo ""
 echo "Making final adjustments..."
@@ -60,15 +74,9 @@ echo "---------------------------- DIRECTORY LISTING ---------------------------
 cat .tmp-ferox | grep directory | cut -d " " -f 12 >> SSWRecon-results.txt
 echo "" >> SSWRecon-results.txt
 echo "---------------------------- DIRECTORIES FOUND ----------------------------" >> SSWRecon-results.txt
-for h in $(tail -n +2 .tmp-ffuf | cut -d "," -f 2);do grep $h .tmp3 >> SSWRecon-results.txt;echo " " >> SSWRecon-results.txt;done
+for h in $(cat .tmp-ffuf);do cut -d " " -f 1 .tmp | grep $h;echo " " >> SSWRecon-results.txt;done
 
 rm -rf .tmp*
 
 echo "We are finally done!"
 echo "All results stored in SSWRecon-results"
-
-
-
-
-
---------->>>> INDEED NÃO FUNCIONANDO, ESTÁ DANDO CODIGO 403 EM SITE QUE EXISTE. PROVAVELMENTE ESTÁ RECUSANDO OU O USER AGENT OU NÃO SEI.
