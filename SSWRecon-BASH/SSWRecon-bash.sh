@@ -69,12 +69,11 @@ cat .tmp-ferox | awk -F "c " '{print $2}' | awk 'NF>0' > .tmp
 echo ""
 echo "Making final adjustments..."
 
-touch SSWRecon-results.txt
-echo "---------------------------- DIRECTORY LISTING ----------------------------" >> SSWRecon-results.txt
+echo "---------------------------- DIRECTORY LISTING ----------------------------" > SSWRecon-results.txt
 cat .tmp-ferox | grep directory | cut -d " " -f 12 >> SSWRecon-results.txt
 echo "" >> SSWRecon-results.txt
 echo "---------------------------- DIRECTORIES FOUND ----------------------------" >> SSWRecon-results.txt
-for h in $(cat .tmp-ffuf);do cut -d " " -f 1 .tmp | grep $h;echo " " >> SSWRecon-results.txt;done
+for h in $(cat .tmp-ffuf);do cut -d " " -f 1 .tmp | grep $h >> SSWRecon-results.txt ;echo " " >> SSWRecon-results.txt;done
 
 rm -rf .tmp*
 
