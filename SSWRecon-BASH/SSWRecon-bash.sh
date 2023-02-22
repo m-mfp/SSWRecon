@@ -1,12 +1,12 @@
 #!/bin/bash
 # Requesting url and making sure there is an input
 echo "Enter url"
-echo "Example: https://businesscorp.com.br"
+echo "Example: https://example.com"
 read fuzzurl
 while [ "$fuzzurl" = "" ]
 do
     echo "Need input, try again" 
-    echo "Example: https://businesscorp.com.br"
+    echo "Example: https://example.com"
     read fuzzurl
 done
 
@@ -29,12 +29,17 @@ read wordlist2
 
 # Performing ffuf
 echo ""
-echo "------------------- Performing FFUF for subdomain discovery with ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt} -------------------"
+echo "---------------- Performing FFUF for subdomain discovery with ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt} ----------------"
 ffuf -w $wordlist1 -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 4 -timeout 5 -p "1.0-2.0" -rate 2 -s -of csv -o .tmp-ffuf
+
+# Looking for subdomains without DNS records
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w fake-subs.txt -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 4 -timeout 5 -p "1.0-2.0" -rate 2 -s -mc all -fs 0 > .a
+
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w wordlist -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 4 -timeout 5 -p "1.0-2.0" -rate 2 -mc all -fs $(awk  '{print $5}' .a | cut -d "," -f1 | head -n 1)
 
 # Performing feroxbuster with filtered results from ffuf
 echo ""
-echo "------------------- Performing FEROXBUSTER for directory discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} -------------------"
+echo "---------------- Performing FEROXBUSTER for directory discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------------"
 echo "This may take a loooong time..."
 echo ""
 
@@ -51,13 +56,19 @@ echo ""
 echo "Making final adjustments..."
 
 touch SSWRecon-results.txt
-echo "--------------------------------- DIRECTORY LISTING ---------------------------------" >> SSWRecon-results.txt
+echo "---------------------------- DIRECTORY LISTING ----------------------------" >> SSWRecon-results.txt
 cat .tmp-ferox | grep directory | cut -d " " -f 12 >> SSWRecon-results.txt
 echo "" >> SSWRecon-results.txt
-echo "--------------------------------- DIRECTORIES FOUND ---------------------------------" >> SSWRecon-results.txt
+echo "---------------------------- DIRECTORIES FOUND ----------------------------" >> SSWRecon-results.txt
 for h in $(tail -n +2 .tmp-ffuf | cut -d "," -f 2);do grep $h .tmp3 >> SSWRecon-results.txt;echo " " >> SSWRecon-results.txt;done
 
 rm -rf .tmp*
 
 echo "We are finally done!"
 echo "All results stored in SSWRecon-results"
+
+
+
+
+
+--------->>>> INDEED NÃO FUNCIONANDO, ESTÁ DANDO CODIGO 403 EM SITE QUE EXISTE. PROVAVELMENTE ESTÁ RECUSANDO OU O USER AGENT OU NÃO SEI.
