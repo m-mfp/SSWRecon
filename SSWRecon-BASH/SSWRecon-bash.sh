@@ -5,7 +5,7 @@ echo "Example: https://example.com"
 read fuzzurl
 while [ "$fuzzurl" = "" ]
 do
-    echo "Need input, try again" 
+    echo "Need input, try again"
     echo "Example: https://example.com"
     read fuzzurl
 done
@@ -51,6 +51,8 @@ else
     rm -rf .tmp-ffuf3
 fi
 
+echo "$fuzzurl" >> .tmp-ffuf
+
 # Performing feroxbuster with filtered results from ffuf
 echo ""
 echo "---------- Performing FEROXBUSTER for directory discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------"
@@ -58,9 +60,11 @@ echo "This may take a loooong time..."
 echo ""
 
 touch .tmp-ferox
+fake=$fuzzurl/$(cat fakesub.txt)
+
 for u in $(cat .tmp-ffuf);
 do
-feroxbuster --url $u --wordlist $wordlist2 --threads 20 --scan-limit 2 --rate-limit 6 --random-agent --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
+feroxbuster --url $u --wordlist $wordlist2 --threads 20 --scan-limit 2 --rate-limit 6 --random-agent --filter-similar-to $fake --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
 done
 
 # Filtered results from feroxbuster
@@ -73,7 +77,7 @@ echo "---------------------------- DIRECTORY LISTING ---------------------------
 cat .tmp-ferox | grep directory | cut -d " " -f 12 >> SSWRecon-results.txt
 echo "" >> SSWRecon-results.txt
 echo "---------------------------- DIRECTORIES FOUND ----------------------------" >> SSWRecon-results.txt
-for h in $(cat .tmp-ffuf);do cut -d " " -f 1 .tmp | grep $h >> SSWRecon-results.txt ;echo " " >> SSWRecon-results.txt;done
+for h in $(cat .tmp-ffuf);do grep $h .tmp >> SSWRecon-results.txt; echo "" >> SSWRecon-results.txt;done
 
 rm -rf .tmp*
 
