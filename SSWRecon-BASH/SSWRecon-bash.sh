@@ -14,6 +14,9 @@ done
 post=$(echo $fuzzurl | cut -d "/" -f 3)
 pre=$(echo $fuzzurl | cut -d ":" -f 1)
 url=$pre://FUZZ.$post
+echo "sdfghuytresdfb" > .test
+fake=$fuzzurl/$(cat .test)
+
 
 # Getting wordlist for ffuf
 echo ""
@@ -30,11 +33,12 @@ read wordlist2
 # Performing ffuf
 echo ""
 echo "---------- Performing FFUF for subdomain discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------"
-ffuf -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -w "$wordlist1" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -s -of csv -o .tmp-ffuf
+
+ffuf -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -w "$wordlist1" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -s -acc "aaaaaa" -acs advanced -of csv -o .tmp-ffuf
 
 # Looking for subdomains without DNS records
 echo "---------- Looking for subdomains without DNS records ----------"
-ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w "fakesub.txt" -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -p "1.0-2.0" -s -of csv -o .tmp 1>/dev/null
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w ".test" -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -p "1.0-2.0" -s -of csv -o .tmp 1>/dev/null
 
 ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w "$wordlist1" -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -mc all -s -of csv -fs $(cut -d "," -f 6 .tmp | tail -n +2) -or -o .tmp-ffuf2 2>/dev/null
 
@@ -43,28 +47,27 @@ if test -f .tmp-ffuf2; then
     cat .tmp-ffuf2 >> .tmp-ffuf
     tail -n +2 .tmp-ffuf | cut -d "," -f 2 >> .tmp-ffuf3
     sort -u .tmp-ffuf3 > .tmp-ffuf
-    rm -rf .tmp-ffuf2 .tmp-ffuf3
+    rm -rf .tmp-ffuf2 .tmp-ffuf3 .tmp .test
 else
     echo "Couldn't find subdomains without DNS records"
     tail -n +2 .tmp-ffuf | cut -d "," -f 2 > .tmp-ffuf3
     sort -u .tmp-ffuf3 > .tmp-ffuf
-    rm -rf .tmp-ffuf3
+    rm -rf .tmp-ffuf3 .tmp .test
 fi
 
 echo "$fuzzurl" >> .tmp-ffuf
 
 # Performing feroxbuster with filtered results from ffuf
 echo ""
-echo "---------- Performing FEROXBUSTER for directory discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------"
+echo "---------- Performing FEROXBUSTER for directory discovery with ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt} ----------"
 echo "This may take a loooong time..."
 echo ""
 
 touch .tmp-ferox
-fake=$fuzzurl/$(cat fakesub.txt)
 
 for u in $(cat .tmp-ffuf);
 do
-feroxbuster --url $u --wordlist "$wordlist2" --threads 20 --scan-limit 2 --rate-limit 6 --random-agent --filter-similar-to $fake --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
+feroxbuster --url $u --wordlist "$wordlist2" --threads 20 --scan-limit 4 --rate-limit 6 --random-agent --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
 done
 
 # Filtered results from feroxbuster
