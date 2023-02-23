@@ -29,14 +29,14 @@ read wordlist2
 
 # Performing ffuf
 echo ""
-echo "---------- Performing FFUF for subdomain discovery with ${wordlist2:=/usr/share/seclists/Discovery/Web-Content/raft-large-directories-lowercase.txt} ----------"
-ffuf -w $wordlist1 -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -s -of csv -o .tmp-ffuf
+echo "---------- Performing FFUF for subdomain discovery with ${wordlist1:=/usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt} ----------"
+ffuf -u $url -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -w "$wordlist1" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -s -of csv -o .tmp-ffuf
 
 # Looking for subdomains without DNS records
 echo "---------- Looking for subdomains without DNS records ----------"
-ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w fakesub.txt -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -p "1.0-2.0" -s -of csv -o .tmp 1>/dev/null
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w "fakesub.txt" -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -p "1.0-2.0" -s -of csv -o .tmp 1>/dev/null
 
-ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w wordlist -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -mc all -s -of csv -fs $(cut -d "," -f 6 .tmp | tail -n +2) -or -o .tmp-ffuf2 2>/dev/null
+ffuf -u $fuzzurl -H "Host: FUZZ.$post" -w "$wordlist1" -H "User-Agent: Mozilla/5.0 (X11;Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0" -t 6 -timeout 5 -p "1.0-2.0" -rate 4 -mc all -s -of csv -fs $(cut -d "," -f 6 .tmp | tail -n +2) -or -o .tmp-ffuf2 2>/dev/null
 
 # Filtering results from ffuf
 if test -f .tmp-ffuf2; then
@@ -64,7 +64,7 @@ fake=$fuzzurl/$(cat fakesub.txt)
 
 for u in $(cat .tmp-ffuf);
 do
-feroxbuster --url $u --wordlist $wordlist2 --threads 20 --scan-limit 2 --rate-limit 6 --random-agent --filter-similar-to $fake --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
+feroxbuster --url $u --wordlist "$wordlist2" --threads 20 --scan-limit 2 --rate-limit 6 --random-agent --filter-similar-to $fake --collect-extensions --collect-backups --collect-words --redirects --insecure 2>/dev/null --output ".tmp-ferox";
 done
 
 # Filtered results from feroxbuster
